@@ -1,13 +1,7 @@
 package br.com.java.http.client.HttpClient;
 
-import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -15,12 +9,14 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.json.JSONException;
 import org.json.JSONObject;
 
-public class HttpClientExample {
+import br.com.java.http.client.HttpUtils.AssertHttpClient;
+import br.com.java.http.client.HttpUtils.HttpClientUtils;
 
-	String baseUrl = "http://requisicao";
+public class HttpClientExample extends HttpClientUtils {
+
+	String baseUrl = "http://url";
 	String token = "";
 
 	public static void main(String[] args) throws Exception {
@@ -56,7 +52,8 @@ public class HttpClientExample {
 		// é CloseableHttpClient
 		HttpClient client = HttpClientBuilder.create().build();
 
-		// Inicialização do HttpPost passando como parametro a URL que será feito o POST
+		// Inicialização do HttpPost passando como parametro a URL que será
+		// feito o POST
 		HttpPost post = new HttpPost(url);
 
 		// Adicionando a Requisição ao Header
@@ -75,16 +72,19 @@ public class HttpClientExample {
 		// valor pode ser nulo, mas nome não
 		// E adiciona na Minha lista de par de Nome e Valor
 		// Desta forma, é passado na URL e não é um JSON, é um form-data*/
-		/*List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
-		urlParameters.add(new BasicNameValuePair("username", "username"));
-		urlParameters.add(new BasicNameValuePair("password", "password"));*/
+		/*
+		 * List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
+		 * urlParameters.add(new BasicNameValuePair("username", "username"));
+		 * urlParameters.add(new BasicNameValuePair("password", "password"));
+		 */
 
 		// Associa a Entidade de Resposta a Requisição
 		// UrlEncodedFormEntity contrui um novo UrlEncodedFormEntity com a lista
 		// de pares Nome e Valor que é passado como paremetro
-		/*post.setEntity(new UrlEncodedFormEntity(urlParameters));*/
-		
-		// Passando a String do JSON para a Entidade que interpreta ele para poder fazer o POST
+		/* post.setEntity(new UrlEncodedFormEntity(urlParameters)); */
+
+		// Passando a String do JSON para a Entidade que interpreta ele para
+		// poder fazer o POST
 		post.setEntity(new StringEntity("{'username':'username','password':'password'}"));
 
 		// Executa a requisição que foi feita pelo parametro passado
@@ -95,29 +95,6 @@ public class HttpClientExample {
 
 		System.out.println("\nEnviando a requisição 'POST' na URL : " + url);
 		System.out.println("Response Code : " + responseCode);
-
-		// BufferReader cria um fluxo de entrada de caracteres em buffer que usa
-		// um buffer de entrada padrão em um Leitor (Reader)
-		// InputStreamReader usa o charset padrão
-		// nos parametros são passado a Resposta pegando a Entidade mensagem
-		// dessa resposta,
-		// junto com um fluxo de conteudo da Entidade
-		/*BufferedReader rd = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));*/
-
-		// Contrui um buffer de caracteres sem caracteres com uma capacidade
-		// inicial especificada
-		/*StringBuffer result = new StringBuffer();
-		String output = "";*/
-
-		// Usando o while como um laço de repetição até que o valor seja
-		// diferente de nulo
-		// Fazendo uma leitura das linhas que foram recebidas até da Entidade e
-		// armazenando na variavel vazia output
-		// Cada vez que passa no laço, ele acrescenta na variavel StringBuffer o
-		// que a variavel output recebeu		
-		/*while ((output = rd.readLine()) != null) {
-		result.append(output);
-		}*/
 
 		InputStream inputStream = response.getEntity().getContent();
 
@@ -159,14 +136,19 @@ public class HttpClientExample {
 
 		if (responseCode == 200) {
 			JSONObject responseContentHttp = responseContentHttp(response.getEntity().getContent());
-			
+
 			// passando o JSON para um MAPA
-			Map<String, Object> map = toMap(responseContentHttp);
+			Map map = toMap(responseContentHttp);
+
+			Object metaCode = trazerMetaCode(map);
 			
-			Object metaCode = ((Map<String,Object>) map.get("meta")).get("code");
+			Object totalCountPagination = trazerTotalCountPagination(map);
 			
+			AssertHttpClient.assertTrue(metaCode.equals(200));
+			AssertHttpClient.assertTrue(totalCountPagination.equals(233446));
+
 			System.out.println("Meta Code: " + metaCode);
-			
+			System.out.println("Total Count: " + totalCountPagination);
 			System.out.println("O resultado do GET: " + responseContentHttp);
 
 		} else {
@@ -187,10 +169,7 @@ public class HttpClientExample {
 		post.setHeader("Content-type", "application/json");
 		post.setHeader("Authorization", token);
 
-		Map<String, String> parametersCreateOS = new HashMap<String, String>();
-		parametersCreateOS.put("algo", "algo");
-
-		String jsonOS = convertMapToJson(parametersCreateOS);
+		String jsonOS = convertMapToJson(parametrosRequisicao());
 
 		post.setEntity(new StringEntity(jsonOS));
 
@@ -204,11 +183,12 @@ public class HttpClientExample {
 		if (responseCode == 200) {
 			JSONObject responseContentHttp = responseContentHttp(response.getEntity().getContent());
 
-			Map<String, Object> map = toMap(responseContentHttp);
+			Map map = toMap(responseContentHttp);
+
+			Object metaCode = trazerMetaCode(map);
 			
-			Object metaCode = ((Map<String,Object>) map.get("meta")).get("code");
-			
-			
+			AssertHttpClient.assertTrue(metaCode.equals(201));
+
 			System.out.println("Meta Code: " + metaCode);
 
 			System.out.println("A Resposta do POST: " + responseContentHttp);
@@ -218,68 +198,4 @@ public class HttpClientExample {
 			System.out.println("Erro: " + tranformaRespostaEmString(response.getEntity().getContent()));
 		}
 	}
-
-	/* Metodos para facilitar o que se faz na classe */
-	private JSONObject responseContentHttp(InputStream inputStream) {
-
-		String tranformacao = tranformaRespostaEmString(inputStream);
-
-		// Converte uma String para um JSON Object usando a biblioteca
-		JSONObject jsonObject = new JSONObject(tranformacao);
-
-		return jsonObject;
-	}
-
-	private String tranformaRespostaEmString(InputStream inputStream) {
-
-		BufferedReader rd = new BufferedReader(new InputStreamReader(inputStream));
-
-		StringBuffer result = new StringBuffer();
-		String output = "";
-
-		try {
-			while ((output = rd.readLine()) != null) {
-				result.append(output);
-			}
-		} catch (IOException e) {
-
-			e.printStackTrace();
-		}
-
-		return result.toString();
-	}
-
-	public static String convertMapToJson(Map map) throws JSONException {
-
-		JSONObject obj = new JSONObject();
-		// JSONObject main = new JSONObject();
-		Set set = map.keySet();
-
-		Iterator iter = set.iterator();
-
-		while (iter.hasNext()) {
-			String key = (String) iter.next();
-			obj.accumulate(key, map.get(key));
-		}
-		// main.accumulate("data",obj);
-
-		return obj.toString();
-	}
-	
-	public static Map<String, Object> toMap(JSONObject object) throws JSONException {
-	    Map<String, Object> map = new HashMap<String, Object>();
-
-	    Iterator<String> keysItr = object.keys();
-	    while(keysItr.hasNext()) {
-	        String key = keysItr.next();
-	        Object value = object.get(key);
-
-	        if(value instanceof JSONObject) {
-	            value = toMap((JSONObject) value);
-	        }
-	        map.put(key, value);
-	    }
-	    return map;
-	}
-
 }
